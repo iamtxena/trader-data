@@ -41,3 +41,31 @@ def test_market_snapshot_rejects_invalid_payload() -> None:
 
     with pytest.raises(ValueError):
         MarketSnapshotV1.from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [
+        ("price", True),
+        ("volume", False),
+        ("price", float("nan")),
+        ("price", float("inf")),
+        ("volume", float("-inf")),
+    ],
+)
+def test_market_snapshot_rejects_non_finite_or_boolean_numeric_values(
+    field_name: str, field_value: object
+) -> None:
+    payload = {
+        "schema_version": "1.0",
+        "symbol": "BTC-USD",
+        "event_time": "2026-02-13T10:00:00Z",
+        "ingest_time": "2026-02-13T10:00:01Z",
+        "price": 100_000.5,
+        "volume": 1.25,
+        "source": "provider-sim",
+    }
+    payload[field_name] = field_value
+
+    with pytest.raises(ValueError):
+        MarketSnapshotV1.from_payload(payload)

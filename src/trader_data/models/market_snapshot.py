@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import math
 from typing import Mapping
 
 
@@ -73,9 +74,12 @@ def _as_str(value: object, field_name: str) -> str:
 
 
 def _as_float(value: object, field_name: str) -> float:
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be numeric.")
-    return float(value)
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value):
+        raise ValueError(f"{field_name} must be finite.")
+    return numeric_value
 
 
 def _as_utc_timestamp(value: object, field_name: str) -> datetime:
