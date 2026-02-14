@@ -5,13 +5,13 @@ Trade Nexus data module repository.
 ## Scope
 
 - Adapter-first provider integration boundaries.
-- Endpoint-free Gate0 bootstrap surface.
+- Internal authenticated service routes under `/internal/v1/*` only.
 - Platform API remains the only external client entrypoint.
 
 ## Quick start
 
 ```bash
-uv run --with pytest python -m pytest tests/contract/test_boundary_contracts.py
+uv run --with pytest python -m pytest
 ```
 
 ## Governance docs
