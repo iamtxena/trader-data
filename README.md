@@ -1,15 +1,26 @@
 # trader-data
 
-Trade Nexus Data Module repository.
+Trade Nexus data module repository.
 
-## Gate0 bootstrap scope
+## Scope
 
-- Establish ownership and module boundaries.
-- Keep implementation endpoint-free in Gate0.
-- Provide adapter-first interfaces and contract guardrail tests.
+- Adapter-first provider integration boundaries.
+- Endpoint-free Gate0 bootstrap surface.
+- Platform API remains the only external client entrypoint.
 
-## Contract boundary
+## Quick start
 
-- External consumers must go through Platform API only.
-- Public API source of truth remains in `trade-nexus` OpenAPI spec.
-Trade Nexus data module repository
+```bash
+uv run --with pytest python -m pytest tests/contract/test_boundary_contracts.py
+```
+
+## Governance docs
+
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `SECURITY.md`
+- `AGENTS.md`
+- `DATA_MODEL.md`
+- `PROVIDER_INTERFACE.md`
+- `DATA_QUALITY.md`
+- `OPERATIONS.md`
