@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -13,11 +11,6 @@ from trader_data.models.market_data import CandleV1, ContextualCandleV1, OrderBo
 
 def utc_now() -> str:
     return datetime.now(tz=UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def deterministic_hash(payload: dict[str, Any]) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -46,8 +39,8 @@ class InMemoryDataStore:
         }
 
     def next_id(self, scope: str) -> str:
+        if scope != "export":
+            raise ValueError(f"Unsupported id scope: {scope}")
         idx = self._id_counters[scope]
         self._id_counters[scope] = idx + 1
-        if scope == "export":
-            return f"exp-{idx:04d}"
-        return f"{scope}-{idx:04d}"
+        return f"exp-{idx:04d}"

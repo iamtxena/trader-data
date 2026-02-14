@@ -1,5 +1,7 @@
 """Smoke tests for ingestion pipeline determinism."""
 
+import pytest
+
 from trader_data.ingestion import IngestionPipeline
 from trader_data.store import InMemoryDataStore
 
@@ -57,3 +59,9 @@ def test_tick_ingestion_defaults_schema_version() -> None:
     )
     assert tick.schema_version == "1.0"
     assert len(store.ticks) == 1
+
+
+def test_data_store_next_id_rejects_unknown_scope() -> None:
+    store = InMemoryDataStore()
+    with pytest.raises(ValueError):
+        store.next_id("unknown")
