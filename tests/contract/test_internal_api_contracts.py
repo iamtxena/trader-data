@@ -26,6 +26,20 @@ def test_internal_api_requires_service_auth_when_key_is_configured(monkeypatch) 
     assert response.status_code == 401
 
 
+def test_internal_api_fails_closed_when_service_key_is_missing(monkeypatch) -> None:
+    monkeypatch.delenv("TRADER_DATA_SERVICE_API_KEY", raising=False)
+    monkeypatch.delenv("SERVICE_API_KEY", raising=False)
+    client = TestClient(app)
+
+    response = client.post(
+        "/internal/v1/exports/backtest",
+        json={"datasetIds": ["dataset-1"], "assetClasses": ["crypto"]},
+        headers=_headers(),
+    )
+
+    assert response.status_code == 503
+
+
 def test_create_and_get_backtest_export(monkeypatch) -> None:
     monkeypatch.setenv("TRADER_DATA_SERVICE_API_KEY", "service-key")
     client = TestClient(app)

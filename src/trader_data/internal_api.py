@@ -24,7 +24,10 @@ def _expected_service_key() -> str | None:
 def _require_service_auth(authorization: str | None = Header(default=None, alias="Authorization")) -> None:
     expected = _expected_service_key()
     if not expected:
-        return
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service authentication key is not configured.",
+        )
     if authorization != f"Bearer {expected}":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized service caller.")
 
