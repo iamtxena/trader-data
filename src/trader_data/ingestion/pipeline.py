@@ -42,6 +42,6 @@ class IngestionPipeline:
 
     def backfill_candles(self, payloads: Iterable[Mapping[str, object]]) -> list[CandleV1]:
         candles = [CandleV1.from_payload(_with_default_schema(item)) for item in payloads]
-        candles.sort(key=lambda candle: (candle.symbol, candle.interval, candle.event_time.isoformat()))
+        candles.sort(key=lambda candle: (candle.symbol, candle.exchange, candle.interval, candle.event_time))
         self._store.candles.extend(candles)
         return candles
