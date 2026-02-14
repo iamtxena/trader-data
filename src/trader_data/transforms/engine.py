@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 
 from trader_data.models.market_data import CandleV1
-from trader_data.store import deterministic_hash
+
+
+def _deterministic_hash(payload: dict[str, object]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -24,15 +30,30 @@ class TransformEngine:
         candles: list[CandleV1],
         min_volume: float = 0.0,
     ) -> CandleTransformResult:
-        filtered = [item for item in candles if item.volume >= min_volume]
-        filtered.sort(key=lambda item: (item.symbol, item.exchange, item.interval, item.event_time.isoformat()))
+        ordered = sorted(
+            candles,
+            key=lambda item: (
+                item.symbol,
+                item.exchange,
+                item.interval,
+                item.event_time.isoformat(),
+                item.open,
+                item.high,
+                item.low,
+                item.close,
+                item.volume,
+            ),
+        )
 
         transformed: list[dict[str, object]] = []
         by_series: dict[tuple[str, str, str], float] = {}
-        for candle in filtered:
+        for candle in ordered:
             key = (candle.symbol, candle.exchange, candle.interval)
             previous_close = by_series.get(key)
             close_return = 0.0 if previous_close is None or previous_close == 0 else (candle.close - previous_close) / previous_close
+            by_series[key] = candle.close
+            if candle.volume < min_volume:
+                continue
             transformed.append(
                 {
                     "schemaVersion": candle.schema_version,
@@ -48,9 +69,8 @@ class TransformEngine:
                     "closeReturn": round(close_return, 10),
                 }
             )
-            by_series[key] = candle.close
 
-        output_hash = deterministic_hash(
+        output_hash = _deterministic_hash(
             {
                 "minVolume": min_volume,
                 "items": transformed,
