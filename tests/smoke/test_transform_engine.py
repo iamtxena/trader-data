@@ -65,3 +65,71 @@ def test_transform_engine_filters_by_volume() -> None:
     result = engine.transform_candles(candles=list(store.candles), min_volume=1.0)
     assert result.item_count == 0
     assert result.items == []
+
+
+def test_transform_engine_keeps_exchange_series_isolated() -> None:
+    store = InMemoryDataStore()
+    ingestion = IngestionPipeline(store)
+    engine = TransformEngine()
+
+    payloads = [
+        {
+            "schema_version": "1.0",
+            "symbol": "BTCUSDT",
+            "exchange": "coinbase",
+            "interval": "1m",
+            "open": 200.0,
+            "high": 201.0,
+            "low": 199.0,
+            "close": 200.0,
+            "volume": 5.0,
+            "event_time": "2026-02-14T10:00:00Z",
+        },
+        {
+            "schema_version": "1.0",
+            "symbol": "BTCUSDT",
+            "exchange": "binance",
+            "interval": "1m",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.0,
+            "volume": 5.0,
+            "event_time": "2026-02-14T10:00:00Z",
+        },
+        {
+            "schema_version": "1.0",
+            "symbol": "BTCUSDT",
+            "exchange": "coinbase",
+            "interval": "1m",
+            "open": 200.0,
+            "high": 221.0,
+            "low": 199.0,
+            "close": 220.0,
+            "volume": 5.0,
+            "event_time": "2026-02-14T10:01:00Z",
+        },
+        {
+            "schema_version": "1.0",
+            "symbol": "BTCUSDT",
+            "exchange": "binance",
+            "interval": "1m",
+            "open": 100.0,
+            "high": 111.0,
+            "low": 99.0,
+            "close": 110.0,
+            "volume": 5.0,
+            "event_time": "2026-02-14T10:01:00Z",
+        },
+    ]
+    for payload in payloads:
+        ingestion.ingest_candle(payload)
+
+    transformed = engine.transform_candles(candles=list(store.candles), min_volume=0.0).items
+    returns_by_exchange: dict[str, list[float]] = {}
+    for item in transformed:
+        exchange = str(item["exchange"])
+        returns_by_exchange.setdefault(exchange, []).append(float(item["closeReturn"]))
+
+    assert returns_by_exchange["binance"] == [0.0, 0.1]
+    assert returns_by_exchange["coinbase"] == [0.0, 0.1]

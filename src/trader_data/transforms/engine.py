@@ -25,12 +25,12 @@ class TransformEngine:
         min_volume: float = 0.0,
     ) -> CandleTransformResult:
         filtered = [item for item in candles if item.volume >= min_volume]
-        filtered.sort(key=lambda item: (item.symbol, item.interval, item.event_time.isoformat()))
+        filtered.sort(key=lambda item: (item.symbol, item.exchange, item.interval, item.event_time.isoformat()))
 
         transformed: list[dict[str, object]] = []
-        by_series: dict[tuple[str, str], float] = {}
+        by_series: dict[tuple[str, str, str], float] = {}
         for candle in filtered:
-            key = (candle.symbol, candle.interval)
+            key = (candle.symbol, candle.exchange, candle.interval)
             previous_close = by_series.get(key)
             close_return = 0.0 if previous_close is None or previous_close == 0 else (candle.close - previous_close) / previous_close
             transformed.append(
