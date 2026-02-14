@@ -135,6 +135,10 @@ class CandleV1:
             raise ValueError("OHLC values must be > 0.")
         if high_price < low_price:
             raise ValueError("high must be >= low.")
+        if not (low_price <= open_price <= high_price):
+            raise ValueError("open must be within [low, high].")
+        if not (low_price <= close_price <= high_price):
+            raise ValueError("close must be within [low, high].")
         if volume < 0:
             raise ValueError("volume must be >= 0.")
         return cls(
@@ -177,12 +181,18 @@ class ContextualCandleV1:
             raise ValueError("custom must be a key-value object.")
         custom: dict[str, float] = {str(key): _as_float(value, f"custom[{key}]") for key, value in custom_payload.items()}
 
+        news: list[dict[str, Any]] = []
+        for index, item in enumerate(news_payload):
+            if not isinstance(item, Mapping):
+                raise ValueError(f"news[{index}] must be an object.")
+            news.append(dict(item))
+
         return cls(
             schema_version=MARKET_DATA_SCHEMA_VERSION,
             candle=CandleV1.from_payload(candle_payload),
             sentiment=sentiment,
             regime=_as_str(payload["regime"], "regime") if payload.get("regime") is not None else None,
-            news=[dict(item) for item in news_payload if isinstance(item, Mapping)],
+            news=news,
             custom=custom,
         )
 
@@ -199,7 +209,7 @@ def _parse_levels(value: object, field_name: str) -> list[OrderBookLevelV1]:
             raise ValueError(f"{field_name}[{index}] must be an object.")
         price = _as_float(item.get("price"), f"{field_name}[{index}].price")
         quantity = _as_float(item.get("quantity"), f"{field_name}[{index}].quantity")
-        if price <= 0 or quantity < 0:
+        if price <= 0 or quantity <= 0:
             raise ValueError(f"{field_name}[{index}] has invalid price/quantity.")
         levels.append(OrderBookLevelV1(price=price, quantity=quantity))
     return levels
