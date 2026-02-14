@@ -32,10 +32,20 @@ def test_provider_interface_is_adapter_scoped() -> None:
 
 def test_internal_api_routes_stay_internal_only() -> None:
     python_files = SRC_ROOT.rglob("*.py")
-    route_pattern = re.compile(r'@(?:app|router)\.(?:get|post|put|patch|delete)\("(?P<path>[^"]+)"\)')
+    route_pattern = re.compile(
+        r"@(?:app|router)\.(?:get|post|put|patch|delete)\(\s*(?P<quote>['\"])(?P<path>[^'\"]+)(?P=quote)\s*\)"
+    )
 
     for file_path in python_files:
         text = file_path.read_text(encoding="utf-8")
         for match in route_pattern.finditer(text):
             path = match.group("path")
             assert path.startswith("/internal/v1/"), f"Route must stay internal-only: {path} in {file_path}"
+
+
+def test_internal_api_route_regex_matches_single_and_double_quotes() -> None:
+    route_pattern = re.compile(
+        r"@(?:app|router)\.(?:get|post|put|patch|delete)\(\s*(?P<quote>['\"])(?P<path>[^'\"]+)(?P=quote)\s*\)"
+    )
+    assert route_pattern.search("@app.get('/internal/v1/ping')")
+    assert route_pattern.search('@router.post("/internal/v1/exports/backtest")')

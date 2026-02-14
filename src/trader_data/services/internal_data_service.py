@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 
 from trader_data.ingestion.pipeline import IngestionPipeline
 from trader_data.models.market_data import CandleV1
@@ -20,10 +21,12 @@ class RequestIdentity:
 class InternalDataService:
     """Coordinates ingestion, transforms, and export/context creation."""
 
-    def __init__(self, store: InMemoryDataStore) -> None:
+    def __init__(self, store: InMemoryDataStore, export_base_url: str | None = None) -> None:
         self._store = store
         self._ingestion = IngestionPipeline(store)
         self._transforms = TransformEngine()
+        base_url = export_base_url or os.getenv("TRADER_DATA_EXPORT_BASE_URL", "https://trader-data.internal")
+        self._export_base_url = base_url.rstrip("/")
 
     @property
     def ingestion(self) -> IngestionPipeline:
@@ -58,7 +61,7 @@ class InternalDataService:
             status="completed",
             dataset_ids=list(dataset_ids),
             asset_classes=list(asset_classes),
-            download_url=f"https://trader-data.internal/exports/{export_id}.parquet",
+            download_url=f"{self._export_base_url}/exports/{export_id}.parquet",
             lineage={
                 "tenantId": identity.tenant_id,
                 "requestId": identity.request_id,
@@ -88,14 +91,20 @@ class InternalDataService:
                 "generatedAt": utc_now(),
             }
 
-        latest = sorted(candles, key=lambda item: item.event_time.isoformat())[-1]
-        volatility = _volatility_label(candles)
+        ordered = sorted(candles, key=lambda item: item.event_time.isoformat())
+        latest = ordered[-1]
+        latest_series = [
+            item
+            for item in ordered
+            if (item.symbol, item.exchange, item.interval) == (latest.symbol, latest.exchange, latest.interval)
+        ]
+        volatility = _volatility_label(latest_series)
         return {
             "regimeSummary": f"{latest.symbol} {latest.interval} regime indicates {volatility} volatility.",
             "signals": [
                 {"name": "volatility", "value": volatility},
                 {"name": "latest_close", "value": f"{latest.close:.6f}"},
-                {"name": "sample_size", "value": str(len(candles))},
+                {"name": "sample_size", "value": str(len(latest_series))},
             ],
             "generatedAt": utc_now(),
         }
@@ -106,14 +115,7 @@ class InternalDataService:
             return list(self._store.candles)
 
         def include(candle: CandleV1) -> bool:
-            symbol = candle.symbol.upper()
-            if "crypto" in normalized and symbol.endswith(("USDT", "USD")):
-                return True
-            if "fx" in normalized and symbol.endswith("USD") and len(symbol) == 6:
-                return True
-            if "equity" in normalized and not symbol.endswith(("USDT", "USD")):
-                return True
-            return False
+            return _infer_asset_class(candle.symbol) in normalized
 
         return [item for item in self._store.candles if include(item)]
 
@@ -148,3 +150,35 @@ def _volatility_label(candles: list[CandleV1]) -> str:
     if average >= 0.01:
         return "medium"
     return "low"
+
+
+_FIAT_CODES = {
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "CHF",
+    "CAD",
+    "AUD",
+    "NZD",
+    "SEK",
+    "NOK",
+    "MXN",
+}
+
+
+def _infer_asset_class(symbol: str) -> str:
+    normalized = symbol.upper()
+    if normalized.endswith("USDT"):
+        return "crypto"
+    if (
+        len(normalized) == 6
+        and normalized[:3].isalpha()
+        and normalized[3:].isalpha()
+        and normalized[:3] in _FIAT_CODES
+        and normalized[3:] in _FIAT_CODES
+    ):
+        return "fx"
+    if normalized.endswith("USD"):
+        return "crypto"
+    return "equity"
