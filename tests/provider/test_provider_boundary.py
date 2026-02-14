@@ -10,6 +10,9 @@ ADAPTER_INTERFACE = REPO_ROOT / "src/trader_data/adapters/provider_interface.py"
 def test_provider_interface_keeps_adapter_protocol_boundary() -> None:
     text = ADAPTER_INTERFACE.read_text(encoding="utf-8")
     assert "class ProviderAdapter(Protocol)" in text
+    assert "fetch_ticks" in text
+    assert "fetch_orderbook" in text
+    assert "fetch_candles" in text
     assert "fetch_market_context" in text
 
 
